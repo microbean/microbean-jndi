@@ -26,11 +26,11 @@ import javax.naming.Binding;
 import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 
-public abstract class AbstractNamingEnumeration<T> implements NamingEnumeration<T> {
+public abstract class AbstractNamingEnumeration<K, T> implements NamingEnumeration<T> {
 
-  protected final Iterator<? extends String> names;
+  protected final Iterator<? extends K> names;
 
-  protected AbstractNamingEnumeration(final Iterator<? extends String> names) {
+  protected AbstractNamingEnumeration(final Iterator<? extends K> names) {
     super();
     this.names = Objects.requireNonNull(names);
   }
@@ -63,9 +63,9 @@ public abstract class AbstractNamingEnumeration<T> implements NamingEnumeration<
     }
   }
 
-  protected abstract Object get(final String name) throws NamingException;
+  protected abstract Object get(final K name) throws NamingException;
 
-  protected String getClassName(final String name) throws NamingException {
+  protected String getClassName(final K name) throws NamingException {
     final String returnValue;
     final Object object = this.get(name);
     if (object == null) {

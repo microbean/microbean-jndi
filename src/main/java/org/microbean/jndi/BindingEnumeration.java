@@ -22,20 +22,20 @@ import java.util.Objects;
 import javax.naming.Binding;
 import javax.naming.NamingException;
 
-public abstract class BindingEnumeration extends AbstractNamingEnumeration<Binding> {
+public abstract class BindingEnumeration<K> extends AbstractNamingEnumeration<K, Binding> {
 
-  public BindingEnumeration(final Iterable<? extends String> names) {
+  public BindingEnumeration(final Iterable<? extends K> names) {
     this(Objects.requireNonNull(names).iterator());
   }
   
-  public BindingEnumeration(final Iterator<? extends String> names) {
+  public BindingEnumeration(final Iterator<? extends K> names) {
     super(names);
   }
   
   @Override
   public Binding next() throws NamingException {
-    final String name = this.names.next();
-    return new Binding(name, this.get(name));
+    final K name = this.names.next();
+    return new Binding(name.toString(), this.get(name));
   }
   
 }

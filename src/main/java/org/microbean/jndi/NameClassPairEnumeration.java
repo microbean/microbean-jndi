@@ -22,20 +22,20 @@ import java.util.Objects;
 import javax.naming.NameClassPair;
 import javax.naming.NamingException;
 
-public abstract class NameClassPairEnumeration extends AbstractNamingEnumeration<NameClassPair> {
+public abstract class NameClassPairEnumeration<K> extends AbstractNamingEnumeration<K, NameClassPair> {
 
-  public NameClassPairEnumeration(final Iterable<? extends String> names) {
+  public NameClassPairEnumeration(final Iterable<? extends K> names) {
     this(Objects.requireNonNull(names).iterator());
   }
   
-  public NameClassPairEnumeration(final Iterator<? extends String> names) {
+  public NameClassPairEnumeration(final Iterator<? extends K> names) {
     super(names);
   }
   
   @Override
   public NameClassPair next() throws NamingException {
-    final String name = this.names.next();
-    return new NameClassPair(name, this.getClassName(name));
+    final K name = this.names.next();
+    return new NameClassPair(name.toString(), this.getClassName(name));
   }
   
 }

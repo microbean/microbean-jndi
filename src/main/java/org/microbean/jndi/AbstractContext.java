@@ -452,7 +452,7 @@ public abstract class AbstractContext<K> implements Context {
         if (value != null) {
           if (value instanceof Context) {
             final Context subcontext = (Context)value;
-            final Enumeration<?> enumeration = subcontext.list("");
+            final Enumeration<?> enumeration = subcontext.list(EMPTY_NAME);
             if (enumeration != null && enumeration.hasMoreElements()) {
               throw new ContextNotEmptyException(name.toString());
             }
@@ -558,8 +558,8 @@ public abstract class AbstractContext<K> implements Context {
     // All of this craziness suggests that this method is used to get
     // the NameParser affiliated with a Context implementation stored
     // in THIS Context implementation under the supplied compound
-    // name.  Recall that the supplied compound name might be empty,
-    // which means this very context itself.
+    // name.  Recall that the supplied compound name might be (and
+    // usually is) empty, which means this very context itself.
     //
     // If we are handed a CompositeName, it's hard to know what to do,
     // since name parsing is so very fundamental to separating out the

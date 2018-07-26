@@ -107,7 +107,7 @@ public abstract class AbstractContext<K> implements Context {
     return returnValue;
   }
 
-  protected Name toCompoundName(final CompositeName compositeName) throws NamingException {
+  protected final Name toCompoundName(final CompositeName compositeName) throws NamingException {
     Objects.requireNonNull(compositeName);
     final NameParser nameParser = this.getNameParser(EMPTY_NAME);
     if (nameParser == null) {
@@ -187,7 +187,7 @@ public abstract class AbstractContext<K> implements Context {
   protected abstract Set<K> keySet() throws NamingException;
 
   protected abstract K extractKey(final Name name) throws NamingException;
-
+  
   @Override
   public NamingEnumeration<NameClassPair> list(final Name name) throws NamingException {
     Objects.requireNonNull(name);
@@ -304,7 +304,7 @@ public abstract class AbstractContext<K> implements Context {
     this.bind(name, obj, false);
   }
 
-  protected void bind(final Name name, final Object obj, boolean rebindPermitted) throws NamingException {
+  protected void bind(final Name name, final Object obj, final boolean rebindPermitted) throws NamingException {
     Objects.requireNonNull(name);
     if (name.isEmpty()) {
       throw new InvalidNameException("name.isEmpty()");
@@ -460,14 +460,14 @@ public abstract class AbstractContext<K> implements Context {
             final Object old = this.remove(mapKey);
             assert old == subcontext;
           } else {
-            throw new NotContextException(name.toString());
+            throw new NotContextException(mapKey + " in " + name.toString());
           }
         }
       } else if (value instanceof Context) {
         assert size > 1;
-        ((Context)value).destroySubcontext(name.getSuffix(1));
+        ((Context)value).destroySubcontext(compoundName.getSuffix(1));
       } else {
-        throw new NotContextException(mapKey.toString());
+        throw new NotContextException(mapKey + " in " + name.toString());
       }
     } else {
       // Specification says that this method should be a no-op if the
@@ -513,7 +513,7 @@ public abstract class AbstractContext<K> implements Context {
       assert size > 1;
       returnValue = ((Context)value).createSubcontext(compoundName.getSuffix(1));
     } else {
-      throw new NotContextException(name.toString());
+      throw new NotContextException(mapKey + " in " + name.toString());
     }
     return returnValue;
   }
@@ -621,8 +621,19 @@ public abstract class AbstractContext<K> implements Context {
   }
 
   @Override
-  public void close() {
-
+  public void close() throws NamingException {
+    final NamingEnumeration<Binding> contents = this.listBindings(EMPTY_NAME);
+    if (contents != null) {
+      while (contents.hasMore()) {
+        final Binding binding = contents.next();
+        if (binding != null) {
+          final Object value = binding.getObject();
+          if (value instanceof Context) {
+            ((Context)value).close();
+          }
+        }
+      }
+    }
   }
 
   @Override

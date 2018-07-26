@@ -56,6 +56,11 @@ public class TestMapContext {
   }
 
   @Test
+  public void testCreateSubcontext() throws NamingException {
+    this.context.createSubcontext("a");
+  }
+  
+  @Test
   public void testLookupOfJavaColon() throws NamingException {
     final Object result = this.context.lookup("java:");
     assertTrue(result instanceof Context);

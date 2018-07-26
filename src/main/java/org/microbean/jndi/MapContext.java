@@ -90,16 +90,11 @@ public class MapContext extends AbstractContext<String> {
   protected final String extractKey(final Name name) throws NamingException {
     final Name compoundName = this.toCompoundName(Objects.requireNonNull(name));
     assert compoundName != null;
-    final int size = compoundName.size();
-    String component = null;
-    for (int i = 0; i < size && (component == null || component.isEmpty()); i++) {
-      component = compoundName.get(i);
-    }
     final String returnValue;
-    if (component == null || component.isEmpty()) {
+    if (compoundName.isEmpty()) {
       returnValue = "";
     } else {
-      returnValue = component;
+      returnValue = compoundName.get(0);
     }
     return returnValue;
   }

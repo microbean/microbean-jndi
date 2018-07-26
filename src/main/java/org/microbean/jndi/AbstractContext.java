@@ -45,6 +45,10 @@ public abstract class AbstractContext<K> implements Context {
 
   private static final Pattern urlPattern = Pattern.compile("^[a-zA-Z]+?:(.*)$");
 
+  private static final int CLOSING = 1;
+
+  private static final int CLOSED = 2;
+
   public static final Name EMPTY_NAME = new CompositeName() {
 
       private static final long serialVersionUID = 1L;
@@ -81,6 +85,8 @@ public abstract class AbstractContext<K> implements Context {
   
   protected final Name prefix;
 
+  private int state;
+  
   protected AbstractContext(final Hashtable<?, ?> environment, final NameParser nameParser, final Name prefix) {
     super();
     this.nameParser = nameParser;
@@ -96,12 +102,27 @@ public abstract class AbstractContext<K> implements Context {
     }
   }
 
+  private final void failIfNotOpen() throws NamingException {
+    final int state = this.state;
+    if (state > 0) {
+      throw (NamingException)new NamingException("context is closing or closed").initCause(new IllegalStateException("context is closing or closed"));
+    }
+  }
+
+  private final void failIfClosed() throws NamingException {
+    final int state = this.state;
+    if (state >= CLOSED) {
+      throw (NamingException)new NamingException("context is closing or closed").initCause(new IllegalStateException("context is closing or closed"));
+    }
+  }
+
   protected final Name toCompoundName(final Name name) throws NamingException {
     Objects.requireNonNull(name);
     final Name returnValue;
     if (name instanceof CompositeName) {
       returnValue = this.toCompoundName((CompositeName)name);
     } else {
+      failIfNotOpen();
       returnValue = name;
     }
     return returnValue;
@@ -109,6 +130,7 @@ public abstract class AbstractContext<K> implements Context {
 
   protected final Name toCompoundName(final CompositeName compositeName) throws NamingException {
     Objects.requireNonNull(compositeName);
+    failIfNotOpen();
     final NameParser nameParser = this.getNameParser(EMPTY_NAME);
     if (nameParser == null) {
       throw (NamingException)new NamingException().initCause(new IllegalStateException("getNameParser(\"\") == null"));
@@ -158,6 +180,7 @@ public abstract class AbstractContext<K> implements Context {
   protected abstract Context newContext(final Name prefix) throws NamingException;
 
   protected final Object get(final K key, final Name name) throws NamingException {
+    failIfClosed();
     final Object returnValue;
     Object temp = null;
     try {
@@ -190,6 +213,7 @@ public abstract class AbstractContext<K> implements Context {
   
   @Override
   public NamingEnumeration<NameClassPair> list(final Name name) throws NamingException {
+    failIfNotOpen();
     Objects.requireNonNull(name);
     final NamingEnumeration<NameClassPair> returnValue;
     if (name.isEmpty()) {
@@ -224,6 +248,7 @@ public abstract class AbstractContext<K> implements Context {
 
   @Override
   public NamingEnumeration<Binding> listBindings(final Name name) throws NamingException {
+    failIfClosed(); // ...but not CLOSING
     Objects.requireNonNull(name);
     final NamingEnumeration<Binding> returnValue;
     if (name.isEmpty()) {
@@ -263,6 +288,7 @@ public abstract class AbstractContext<K> implements Context {
 
   @Override
   public Object lookup(final Name name) throws NamingException {
+    failIfNotOpen();
     Objects.requireNonNull(name);
     
     final Name compoundName = toCompoundName(name);
@@ -301,6 +327,7 @@ public abstract class AbstractContext<K> implements Context {
 
   @Override
   public final void bind(final Name name, final Object obj) throws NamingException {
+    failIfNotOpen();
     this.bind(name, obj, false);
   }
 
@@ -348,21 +375,25 @@ public abstract class AbstractContext<K> implements Context {
 
   @Override
   public final void bind(final String name, final Object obj) throws NamingException {
-    this.bind(new CompositeName(Objects.requireNonNull(name)), obj);
+    failIfNotOpen();
+    this.bind(new CompositeName(Objects.requireNonNull(name)), obj, false);
   }
 
   @Override
   public final void rebind(final Name name, final Object obj) throws NamingException {
+    failIfNotOpen();
     this.bind(name, obj, true);
   }
 
   @Override
   public final void rebind(final String name, final Object obj) throws NamingException {
-    this.rebind(new CompositeName(Objects.requireNonNull(name)), obj);
+    failIfNotOpen();
+    this.bind(new CompositeName(Objects.requireNonNull(name)), obj, true);
   }
 
   @Override
   public void unbind(final Name name) throws NamingException {
+    failIfNotOpen();
     Objects.requireNonNull(name);
     if (name.isEmpty()) {
       throw new InvalidNameException("name.isEmpty()");
@@ -404,6 +435,7 @@ public abstract class AbstractContext<K> implements Context {
 
   @Override
   public void rename(final Name oldName, final Name newName) throws NamingException {
+    failIfNotOpen();
     throw new OperationNotSupportedException("rename");
   }
 
@@ -432,6 +464,7 @@ public abstract class AbstractContext<K> implements Context {
 
   @Override
   public void destroySubcontext(final Name name) throws NamingException {
+    failIfNotOpen();
     Objects.requireNonNull(name);
     if (name.isEmpty()) {
       throw new InvalidNameException("name.isEmpty()");
@@ -483,6 +516,7 @@ public abstract class AbstractContext<K> implements Context {
 
   @Override
   public Context createSubcontext(final Name name) throws NamingException {
+    failIfNotOpen();
     Objects.requireNonNull(name);
     if (name.isEmpty()) {
       throw new InvalidNameException("name.isEmpty()");
@@ -525,6 +559,7 @@ public abstract class AbstractContext<K> implements Context {
 
   @Override
   public Object lookupLink(final Name name) throws NamingException {
+    failIfNotOpen();
     return this.lookup(name);
   }
 
@@ -535,6 +570,7 @@ public abstract class AbstractContext<K> implements Context {
 
   @Override
   public NameParser getNameParser(final Name name) throws NamingException {
+    failIfClosed();
     // The word "NameParser" shows up only twice, total, in what
     // passes for the JNDI specification
     // (https://docs.oracle.com/javase/8/docs/technotes/guides/jndi/spec/jndi/).
@@ -592,6 +628,7 @@ public abstract class AbstractContext<K> implements Context {
 
   @Override
   public Name composeName(final Name name, final Name prefix) throws NamingException {
+    failIfNotOpen();
     Objects.requireNonNull(name);
     Objects.requireNonNull(prefix);
     final Name returnValue = (Name)(prefix.clone());
@@ -622,6 +659,10 @@ public abstract class AbstractContext<K> implements Context {
 
   @Override
   public void close() throws NamingException {
+    final int state = this.state;
+    if (state == 0) {
+      this.state = CLOSING;
+    }
     final NamingEnumeration<Binding> contents = this.listBindings(EMPTY_NAME);
     if (contents != null) {
       while (contents.hasMore()) {
@@ -634,10 +675,12 @@ public abstract class AbstractContext<K> implements Context {
         }
       }
     }
+    this.state = CLOSED;
   }
 
   @Override
   public String getNameInNamespace() throws NamingException {
+    failIfNotOpen();
     return this.prefix.toString();
   }
 

@@ -43,7 +43,12 @@ public class javaURLContextFactory extends AbstractURLContextFactory {
     if (uri != null && !this.scheme.equals(uri.getScheme())) {
       throw new NamingException("invalid uri: " + uri);
     }
-    return new MapContext(environment, nameString -> new CompoundName(nameString, defaultSyntax));
+    final Context returnValue = new MapContext(environment, nameString -> new CompoundName(nameString, defaultSyntax));
+    final Context comp = returnValue.createSubcontext("comp");
+    assert comp != null;
+    final Context env = comp.createSubcontext("env");
+    assert env != null;
+    return returnValue;
   }
   
 }

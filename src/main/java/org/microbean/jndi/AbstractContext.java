@@ -155,7 +155,7 @@ public abstract class AbstractContext<K> implements Context {
   
   protected abstract Context copy() throws NamingException;
 
-  protected abstract Context newContext() throws NamingException;
+  protected abstract Context newContext(final Name prefix) throws NamingException;
 
   protected final Object get(final K key, final Name name) throws NamingException {
     final Object returnValue;
@@ -503,7 +503,7 @@ public abstract class AbstractContext<K> implements Context {
     final Object value = this.get(mapKey, compoundName);
     final Context returnValue;
     if (size == 1) {
-      returnValue = this.newContext();
+      returnValue = this.newContext(name); // yes, name; not compoundName
       if (returnValue == null) {
         throw (NamingException)new NamingException().initCause(new IllegalStateException("newContext() == null"));
       }

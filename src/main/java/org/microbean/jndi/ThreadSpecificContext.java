@@ -30,24 +30,36 @@ import javax.naming.NameNotFoundException;
 import javax.naming.NameParser;
 import javax.naming.NamingException;
 
-public class MapContext extends AbstractContext<String> {
+public class ThreadSpecificContext extends AbstractContext<String> {
 
-  private final Map<String, Object> map;
+  private static final ThreadLocal<Map<ThreadSpecificContext, Map<String, Object>>> threadAndInstanceSpecificMaps = ThreadLocal.withInitial(() -> new HashMap<>());
 
-  public MapContext(final NameParser nameParser) {
+  public ThreadSpecificContext(final NameParser nameParser) {
     this(null, null, nameParser, null);
   }
   
-  public MapContext(final Hashtable<?, ?> environment, final NameParser nameParser) {
+  public ThreadSpecificContext(final Hashtable<?, ?> environment, final NameParser nameParser) {
     this(null, environment, nameParser, null);
   }
   
-  public MapContext(final Map<? extends String, ?> map, final Hashtable<?, ?> environment, final NameParser nameParser, final Name prefix) {
+  public ThreadSpecificContext(final Map<? extends String, ?> map, final Hashtable<?, ?> environment, final NameParser nameParser, final Name prefix) {
+    // TODO: should environment be thread-and-instance-specific as well?  Probably not.
     super(environment, nameParser, prefix);
+    final Map<String, Object> storage;
     if (map == null || map.isEmpty()) {
-      this.map = new HashMap<>();
+      storage = new HashMap<>();
     } else {
-      this.map = new HashMap<>(map);
+      storage = new HashMap<>(map);
+    }
+    threadAndInstanceSpecificMaps.get().put(this, storage);
+  }
+
+  @Override
+  public void close() throws NamingException {
+    try {
+      super.close();
+    } finally {
+      threadAndInstanceSpecificMaps.remove();
     }
   }
 
@@ -58,32 +70,32 @@ public class MapContext extends AbstractContext<String> {
 
   @Override
   protected Context copy() throws NamingException {
-    return new MapContext(this.map, this.environment, this.getNameParser(EMPTY_NAME), this.prefix);
+    return new ThreadSpecificContext(threadAndInstanceSpecificMaps.get().get(this), this.environment, this.getNameParser(EMPTY_NAME), this.prefix);
   }
 
   @Override
   protected final boolean containsKey(final String mapKey) throws NamingException {
-    return this.map.containsKey(mapKey);
+    return threadAndInstanceSpecificMaps.get().get(this).containsKey(mapKey);
   }
   
   @Override
   protected final Object get(final String mapKey) throws NamingException {
-    return this.map.get(Objects.requireNonNull(mapKey));
+    return threadAndInstanceSpecificMaps.get().get(this).get(mapKey);
   }
 
   @Override
   protected final Set<String> keySet() {
-    return this.map.keySet();
+    return threadAndInstanceSpecificMaps.get().get(this).keySet();
   }
   
   @Override
   protected final Object remove(final String key) throws NamingException {
-    return this.map.remove(Objects.requireNonNull(key));
+    return threadAndInstanceSpecificMaps.get().get(this).remove(key);
   }
 
   @Override
   protected final Object put(final String key, final Object value) throws NamingException {
-    return this.map.put(Objects.requireNonNull(key), Objects.requireNonNull(value));
+    return threadAndInstanceSpecificMaps.get().get(this).put(key, value);
   }
 
   @Override
@@ -97,29 +109,6 @@ public class MapContext extends AbstractContext<String> {
       returnValue = compoundName.get(0);
     }
     return returnValue;
-  }
-
-  @Override
-  public void rename(final Name oldName, final Name newName) throws NamingException {
-    Objects.requireNonNull(oldName);
-    Objects.requireNonNull(newName);
-    if (oldName.isEmpty()) {
-      throw new InvalidNameException("oldName.isEmpty()");
-    } else if (newName.isEmpty()) {
-      throw new InvalidNameException("newName.isEmpty()");
-    }
-
-    final String newKey = this.toCompoundName(newName).toString();
-    if (this.map.containsKey(newKey)) {
-      throw new NameAlreadyBoundException(newName.toString());
-    }
-
-    final String oldKey = this.toCompoundName(oldName).toString();
-    if (!this.map.containsKey(oldKey)) {
-      throw new NameNotFoundException(oldName.toString());
-    }
-    
-    this.put(newKey, this.remove(oldKey));
   }
 
 }

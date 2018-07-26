@@ -21,13 +21,18 @@ import java.net.URI;
 import java.util.Hashtable;
 import java.util.Properties;
 
+import javax.naming.CompositeName;
 import javax.naming.CompoundName;
 import javax.naming.Context;
+import javax.naming.Name;
+import javax.naming.NameParser;
 import javax.naming.NamingException;
 
+import org.microbean.jndi.AbstractContext;
 import org.microbean.jndi.AbstractURLContextFactory;
 import org.microbean.jndi.Contexts;
 import org.microbean.jndi.MapContext;
+import org.microbean.jndi.ThreadSpecificContext;
 
 public class javaURLContextFactory extends AbstractURLContextFactory {
 
@@ -41,13 +46,15 @@ public class javaURLContextFactory extends AbstractURLContextFactory {
   @Override
   protected Context newContext(final Hashtable<?, ?> environment, final URI uri) throws NamingException {
     if (uri != null && !this.scheme.equals(uri.getScheme())) {
-      throw new NamingException("invalid uri: " + uri);
+      throw new NamingException("invalid URI: " + uri);
     }
-    final Context returnValue = new MapContext(environment, nameString -> new CompoundName(nameString, defaultSyntax));
-    final Context comp = returnValue.createSubcontext("comp");
-    assert comp != null;
+    final NameParser nameParser = nameString -> new CompoundName(nameString, defaultSyntax);
+    final Context returnValue = new MapContext(null, environment, nameParser, AbstractContext.EMPTY_NAME);
+    final Name compName = new CompositeName("comp");
+    final ThreadSpecificContext comp = new ThreadSpecificContext(null, environment, nameParser, compName);
     final Context env = comp.createSubcontext("env");
     assert env != null;
+    returnValue.bind(compName, comp);
     return returnValue;
   }
   
